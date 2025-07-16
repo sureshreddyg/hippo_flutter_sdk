@@ -1,0 +1,64 @@
+PODS:
+  - CropViewController (2.7.4)
+  - DropDown (2.3.13)
+  - Flutter (1.0.0)
+  - Hippo (2.1.65):
+    - CropViewController
+    - DropDown
+    - Hippo/Chat (= 2.1.65)
+    - Socket.IO-Client-Swift
+  - Hippo/Chat (2.1.65):
+    - CropViewController
+    - DropDown
+    - Socket.IO-Client-Swift
+  - hippo_flutter_sdk (0.1.0):
+    - Flutter
+    - Hippo
+  - integration_test (0.0.1):
+    - Flutter
+  - Socket.IO-Client-Swift (16.1.1):
+    - Starscream (~> 4.0.8)
+  - Starscream (4.0.8)
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - Hippo (from `https://github.com/Jungle-Works/Hippo-iOS-SDK`, branch `master`)
+  - hippo_flutter_sdk (from `.symlinks/plugins/hippo_flutter_sdk/ios`)
+  - integration_test (from `.symlinks/plugins/integration_test/ios`)
+
+SPEC REPOS:
+  trunk:
+    - CropViewController
+    - DropDown
+    - Socket.IO-Client-Swift
+    - Starscream
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  Hippo:
+    :branch: master
+    :git: https://github.com/Jungle-Works/Hippo-iOS-SDK
+  hippo_flutter_sdk:
+    :path: ".symlinks/plugins/hippo_flutter_sdk/ios"
+  integration_test:
+    :path: ".symlinks/plugins/integration_test/ios"
+
+CHECKOUT OPTIONS:
+  Hippo:
+    :commit: be4e05263e3e1dd25b1326e17b1e5613667ae4f9
+    :git: https://github.com/Jungle-Works/Hippo-iOS-SDK
+
+SPEC CHECKSUMS:
+  CropViewController: 3489bbf95a3e11c654382b0bae08ac645cdf1b93
+  DropDown: 8a2116376c1981888557f72ec2ffc9a5e0e456ec
+  Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
+  Hippo: 1c581c98c5757437a5b412fe2cbb8a00f9187979
+  hippo_flutter_sdk: 58b990c4b6ee31a3959d17ceddd0fbd93342681c
+  integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
+  Socket.IO-Client-Swift: 3614bea82ba005df1c2ff01154f4004993e05ad7
+  Starscream: 19b5533ddb925208db698f0ac508a100b884a1b9
+
+PODFILE CHECKSUM: 1067f869039b84414ce957337afba9e5a3e0f6eb
+
+COCOAPODS: 1.16.2
