@@ -1,15 +1,57 @@
-# hippo_flutter_sdk
+# Hippo Flutter SDK
 
-A new Flutter plugin project.
+[![pub version](https://img.shields.io/pub/v/hippo_flutter_sdk.svg)](https://pub.dev/packages/hippo_flutter_sdk)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
+A Flutter plugin for integrating the Hippo customer support platform into your mobile applications. Hippo provides a complete suite of tools for live chat, in-app messaging, and user support.
+
+## Features
+
+- Initialize the Hippo SDK with your application credentials.
+- Display the chat conversations view.
+- Initiate peer-to-peer chats between users.
+- Get real-time updates on unread message counts.
+- Clear all user data upon logout.
 
 ## Getting Started
 
-This project is a starting point for a Flutter
-[plug-in package](https://flutter.dev/to/develop-plugins),
-a specialized package that includes platform-specific implementation code for
-Android and/or iOS.
+To get started, add the Hippo Flutter SDK to your `pubspec.yaml` file:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```yaml
+dependencies:
+  hippo_flutter_sdk: ^0.1.2 # Check for the latest version on pub.dev
+```
 
+Then, run `flutter pub get` to install the package.
+
+## Usage
+
+First, initialize the SDK with your app key and user details. This is typically done when your app starts.
+
+```dart
+import 'package:hippo_flutter_sdk/hippo_flutter_sdk.dart';
+import 'dart:convert';
+
+final _hippoFlutterSdkPlugin = HippoFlutterSdk();
+
+void initHippo() {
+  final config = {
+    "appKey": "YOUR_APP_KEY",
+    "userData": {
+      "userUniqueKey": "UNIQUE_USER_ID",
+      "fullName": "John Doe",
+    },
+  };
+  _hippoFlutterSdkPlugin.initHippo(jsonEncode(config));
+}
+```
+
+Once initialized, you can open the conversations view:
+
+```dart
+_hippoFlutterSdkPlugin.showConversations();
+```
+
+## Documentation
+
+For more detailed information on installation, configuration, and advanced usage, please see the full documentation in the [`docs`](./docs) folder.
