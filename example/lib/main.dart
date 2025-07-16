@@ -60,7 +60,8 @@ class _MyHomePageState extends State<MyHomePage> {
       _isHippoInitialized = true;
     });
     final config = {
-      "appKey": "436c2926193b5870db4ce6de4951946e", // TODO: Replace with your actual app key
+      "appKey":
+          "436c2926193b5870db4ce6de4951946e", // TODO: Replace with your actual app key
       "appType": "1",
       "environment": "live",
       "provider": "com.udvilabs.hippo_flutter_sdk_example.provider",
@@ -70,13 +71,16 @@ class _MyHomePageState extends State<MyHomePage> {
         "fullName": "Suresh Reddy",
         "email": "suresh@example.com",
         "phoneNumber": "+1234567890",
-        "selectedlanguage": "en"
+        "selectedlanguage": "en",
       },
     };
     await _hippoFlutterSdkPlugin.initHippo(jsonEncode(config));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Hippo Initialized!'), backgroundColor: Colors.green),
+      const SnackBar(
+        content: Text('Hippo Initialized!'),
+        backgroundColor: Colors.green,
+      ),
     );
   }
 
@@ -87,7 +91,10 @@ class _MyHomePageState extends State<MyHomePage> {
   void _clearHippoData() {
     _hippoFlutterSdkPlugin.clearHippoData();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Hippo data cleared!'), backgroundColor: Colors.orange),
+      const SnackBar(
+        content: Text('Hippo data cleared!'),
+        backgroundColor: Colors.orange,
+      ),
     );
   }
 
@@ -97,7 +104,7 @@ class _MyHomePageState extends State<MyHomePage> {
       "userUniqueKey": "suresh-flutter-1", // Current user's unique key
       "otherUserUniqueKeys": ["suresh-flutter-2"], // Peer's unique key
       "channelName": "Flutter Peer Chat",
-      "peerName": "Flutter Peer"
+      "peerName": "Flutter Peer",
     };
     _hippoFlutterSdkPlugin.openPeerChat(jsonEncode(peerChatData));
   }
@@ -105,18 +112,20 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    _unreadCountSubscription = _hippoFlutterSdkPlugin.getUnreadCountStream().listen((count) {
-      if (!mounted) return;
-      setState(() {
-        _unreadCount = count;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Unread count updated: $count'),
-          backgroundColor: Colors.blueAccent,
-        ),
-      );
-    });
+    _unreadCountSubscription = _hippoFlutterSdkPlugin
+        .getUnreadCountStream()
+        .listen((count) {
+          if (!mounted) return;
+          setState(() {
+            _unreadCount = count;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Unread count updated: $count'),
+              backgroundColor: Colors.blueAccent,
+            ),
+          );
+        });
   }
 
   @override
@@ -128,9 +137,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Hippo SDK Demo'),
-      ),
+      appBar: AppBar(title: const Text('Hippo SDK Demo')),
       body: ListView(
         padding: const EdgeInsets.all(8.0),
         children: [
@@ -148,15 +155,16 @@ class _MyHomePageState extends State<MyHomePage> {
             title: 'Unread Count',
             icon: Icons.mark_chat_unread_outlined,
             onTap: () {},
-            trailing: _isHippoInitialized
-                ? _unreadCount != null
-                    ? Chip(
-                        label: Text('$_unreadCount'),
-                        backgroundColor: Colors.teal,
-                        labelStyle: const TextStyle(color: Colors.white),
-                      )
-                    : const CircularProgressIndicator()
-                : null,
+            trailing:
+                _isHippoInitialized
+                    ? _unreadCount != null
+                        ? Chip(
+                          label: Text('$_unreadCount'),
+                          backgroundColor: Colors.teal,
+                          labelStyle: const TextStyle(color: Colors.white),
+                        )
+                        : const CircularProgressIndicator()
+                    : null,
           ),
           _ActionCard(
             title: 'Clear Hippo Data',
@@ -192,10 +200,7 @@ class _ActionCard extends StatelessWidget {
     return Card(
       child: ListTile(
         leading: Icon(icon, color: Colors.teal, size: 28),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
         trailing: trailing,
         onTap: onTap,
       ),

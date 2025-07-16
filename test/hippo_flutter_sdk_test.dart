@@ -38,11 +38,10 @@ class MockHippoFlutterSdkPlatform
 }
 
 void main() {
-  final HippoFlutterSdkPlatform initialPlatform = HippoFlutterSdkPlatform.instance;
+  final HippoFlutterSdkPlatform initialPlatform =
+      HippoFlutterSdkPlatform.instance;
 
   test('$MethodChannelHippoFlutterSdk is the default instance', () {
     expect(initialPlatform, isInstanceOf<MethodChannelHippoFlutterSdk>());
   });
-
-
 }

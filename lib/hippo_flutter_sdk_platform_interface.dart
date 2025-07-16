@@ -55,6 +55,8 @@ abstract class HippoFlutterSdkPlatform extends PlatformInterface {
 
   /// A stream of unread message counts from the native platform.
   Stream<int> getUnreadCountStream() {
-    throw UnimplementedError('getUnreadCountStream() has not been implemented.');
+    throw UnimplementedError(
+      'getUnreadCountStream() has not been implemented.',
+    );
   }
 }

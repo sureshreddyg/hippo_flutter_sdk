@@ -1,4 +1,3 @@
-
 import 'hippo_flutter_sdk_platform_interface.dart';
 
 /// The main class for interacting with the Hippo Flutter SDK.
