@@ -54,4 +54,4 @@ _hippoFlutterSdkPlugin.showConversations();
 
 ## Documentation
 
-For more detailed information on installation, configuration, and advanced usage, please see the full documentation in the [`docs`](./docs) folder.
+For more detailed information on installation, configuration, and advanced usage, please see the full documentation in the [`doc`](./doc) folder.
