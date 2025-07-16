@@ -74,6 +74,7 @@ class _MyHomePageState extends State<MyHomePage> {
       },
     };
     await _hippoFlutterSdkPlugin.initHippo(jsonEncode(config));
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Hippo Initialized!'), backgroundColor: Colors.green),
     );
@@ -105,6 +106,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     _unreadCountSubscription = _hippoFlutterSdkPlugin.getUnreadCountStream().listen((count) {
+      if (!mounted) return;
       setState(() {
         _unreadCount = count;
       });
