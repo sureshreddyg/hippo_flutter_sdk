@@ -24,6 +24,19 @@ dependencies:
 
 Then, run `flutter pub get` to install the package.
 
+## Android Setup
+
+The Hippo SDK requires the `Java-WebSocket` library to function correctly. To avoid potential version conflicts with other plugins, this dependency is not bundled and must be added manually to your main application.
+
+In your app-level `android/app/build.gradle` file, please add the following dependency:
+
+```groovy
+dependencies {
+    // ... other dependencies
+    implementation 'org.java-websocket:Java-WebSocket:1.5.1'
+}
+```
+
 ## Usage
 
 First, initialize the SDK with your app key and user details. This is typically done when your app starts.

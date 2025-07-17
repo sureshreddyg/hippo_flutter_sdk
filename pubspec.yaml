@@ -1,6 +1,6 @@
 name: hippo_flutter_sdk
 description: "Hippo Flutter SDK is a plugin for Hippo, a platform for building and deploying mobile applications."
-version: 0.2.1
+version: 0.3.0
 repository: https://github.com/sureshreddyg/hippo_flutter_sdk.git
 
 environment:
