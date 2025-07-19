@@ -28,5 +28,5 @@ jobs:
       - name: Run tests
         run: flutter test
 
-      - name: Publish package
-        run: dart pub publish --force
+      # - name: Publish package
+      #   run: dart pub publish --force
