@@ -47,7 +47,7 @@ android {
 
     dependencies {
         compileOnly("com.google.firebase:firebase-messaging:24.1.2")
-        compileOnly("io.hippochat:hippo:3.0.20.7") {
+        compileOnly("io.hippochat:hippo:3.0.20.9") {
             exclude group: 'org.java-websocket', module: 'Java-WebSocket'
         }
         
