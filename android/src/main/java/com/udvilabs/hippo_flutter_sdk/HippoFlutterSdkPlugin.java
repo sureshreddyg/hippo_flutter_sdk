@@ -170,6 +170,7 @@ public class HippoFlutterSdkPlugin implements FlutterPlugin, MethodCallHandler, 
   public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
     activity = binding.getActivity();
     HippoActivityLifecycleCallback.register(activity.getApplication());
+    HippoConfig.progressLoader = false;
   }
 
   @Override
