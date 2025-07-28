@@ -61,13 +61,13 @@ class _MyHomePageState extends State<MyHomePage> {
     });
     final config = {
       "appKey":
-          "436c2926193b5870db4ce6de4951946e", // TODO: Replace with your actual app key
+          "f3a4213c67b4feb32bef5bc1db86434e", // TODO: Replace with your actual app key
       "appType": "1",
-      "environment": "live",
+      // "environment": "live",
       "provider": "com.udvilabs.hippo_flutter_sdk_example.provider",
       "deviceToken": "1234567890", // Required
       "userData": {
-        "userUniqueKey": "UNIQUE_USER_ID", // Required
+        "userUniqueKey": "0e886538-a607-444f-a8e1-32651419f8a4", // Required
         "fullName": "Suresh Reddy",
         "email": "suresh@example.com",
         "phoneNumber": "+1234567890",
@@ -100,11 +100,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _openPeerChat() {
     final peerChatData = {
-      "transactionId": "peer-chat-12345",
-      "userUniqueKey": "suresh-flutter-1", // Current user's unique key
-      "otherUserUniqueKeys": ["suresh-flutter-2"], // Peer's unique key
-      "channelName": "Flutter Peer Chat",
-      "peerName": "Flutter Peer",
+      "transactionId": ":61034680",
+      "userUniqueKey": "0e886538-a607-444f-a8e1-32651419f8a4", // Current user's unique key
+      "otherUserUniqueKeys": ["2072906"], // Peer's unique key
+      "channelName": "Peer Chat",
+      // "peerName": "Flutter Peer",
     };
     _hippoFlutterSdkPlugin.openPeerChat(jsonEncode(peerChatData));
   }

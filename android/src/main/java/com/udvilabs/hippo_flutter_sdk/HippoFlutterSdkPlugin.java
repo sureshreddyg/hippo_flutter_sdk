@@ -5,6 +5,7 @@ import android.content.Context;
 
 import androidx.annotation.NonNull;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -25,7 +26,9 @@ import com.hippo.HippoConfigAttributes;
 import com.hippo.ChatByUniqueIdAttributes;
 import com.hippo.activity.HippoActivityLifecycleCallback;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 /** HippoFlutterSdkPlugin */
 public class HippoFlutterSdkPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware, EventChannel.StreamHandler {
@@ -135,11 +138,17 @@ public class HippoFlutterSdkPlugin implements FlutterPlugin, MethodCallHandler, 
                 String transactionId = peerChatData.getString("transactionId");
                 String userUniqueKey = peerChatData.getString("userUniqueKey");
                 String channelName = peerChatData.getString("channelName");
+                JSONArray otherUserUniqueKeysJson = peerChatData.getJSONArray("otherUserUniqueKeys");
+                ArrayList<String> otherUserUniqueKeys = new ArrayList<>();
+                for (int i = 0; i < otherUserUniqueKeysJson.length(); i++) {
+                    otherUserUniqueKeys.add(otherUserUniqueKeysJson.getString(i));
+                }
 
                 ChatByUniqueIdAttributes chatAttr = new ChatByUniqueIdAttributes.Builder()
                         .setTransactionId(transactionId)
                         .setUserUniqueKey(userUniqueKey)
                         .setChannelName(channelName)
+                        .setOtherUserUniqueKeys(otherUserUniqueKeys)
                         .build();
                 HippoConfig.getInstance().openChatByUniqueId(chatAttr);
                 result.success(null);
