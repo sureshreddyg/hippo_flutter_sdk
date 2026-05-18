@@ -46,8 +46,11 @@ android {
     }
 
     dependencies {
-        implementation("com.google.firebase:firebase-messaging:24.1.2")
-        implementation("io.hippochat:hippo:3.0.20.7")
+        compileOnly("com.google.firebase:firebase-messaging:24.1.2")
+        compileOnly("io.hippochat:hippo:3.0.21.25") {
+            exclude group: 'org.java-websocket', module: 'Java-WebSocket'
+        }
+        
         testImplementation("junit:junit:4.13.2")
         testImplementation("org.mockito:mockito-core:5.0.0")
     }

@@ -8,7 +8,7 @@ This guide will walk you through the process of adding the Hippo Flutter SDK to 
 
     ```yaml
     dependencies:
-      hippo_flutter_sdk: ^0.1.0 # Use the latest version
+      hippo_flutter_sdk: ^0.2.0 # Use the latest version
     ```
 
 2.  **Install the package**: Run the following command in your terminal to get the package:
