@@ -1,18 +1,26 @@
 name: Publish to pub.dev
 
+# Publishes a release when its version tag is pushed (v0.4.0 for version 0.4.0). pub.dev only accepts a GitHub
+# Actions upload from a tag push, through its OIDC login — enable it once on pub.dev: the package's Admin tab →
+# Automated publishing → GitHub repository sureshreddyg/hippo_flutter_sdk, tag pattern v{{version}}.
+# A version that's already on pub.dev (published by hand with `flutter pub publish`) is skipped, so tagging it is safe.
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
 
 jobs:
   publish:
     permissions:
-      id-token: write # Required for publishing using OIDC
+      id-token: write # pub.dev's OIDC login
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up pub.dev's login
+        uses: dart-lang/setup-dart@v1
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -28,5 +36,19 @@ jobs:
       - name: Run tests
         run: flutter test
 
+      - name: Check the tag matches the version
+        run: |
+          version=$(grep -E '^version:' pubspec.yaml | awk '{print $2}')
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME doesn't match the pubspec version $version"
+            exit 1
+          fi
+
       - name: Publish package
-        run: dart pub publish --force
+        run: |
+          version=$(grep -E '^version:' pubspec.yaml | awk '{print $2}')
+          if curl -sf "https://pub.dev/api/packages/hippo_flutter_sdk/versions/$version" > /dev/null; then
+            echo "hippo_flutter_sdk $version is already on pub.dev: nothing to publish."
+          else
+            dart pub publish --force
+          fi

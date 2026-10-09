@@ -43,9 +43,14 @@ abstract class HippoFlutterSdkPlatform extends PlatformInterface {
     throw UnimplementedError('clearHippoData() has not been implemented.');
   }
 
-  /// Retrieves the unread message count from the native platform.
+  /// Asks Hippo for the unread message count and returns it.
   Future<int?> getUnreadCount() {
     throw UnimplementedError('getUnreadCount() has not been implemented.');
+  }
+
+  /// Asks Hippo for the unread announcement count and returns it.
+  Future<int?> getUnreadAnnouncementCount() {
+    throw UnimplementedError('getUnreadAnnouncementCount() has not been implemented.');
   }
 
   /// Opens a peer-to-peer chat on the native platform.
@@ -58,5 +63,22 @@ abstract class HippoFlutterSdkPlatform extends PlatformInterface {
     throw UnimplementedError(
       'getUnreadCountStream() has not been implemented.',
     );
+  }
+
+  /// A stream of unread announcement counts from the native platform.
+  Stream<int> getUnreadAnnouncementCountStream() {
+    throw UnimplementedError(
+      'getUnreadAnnouncementCountStream() has not been implemented.',
+    );
+  }
+
+  /// Whether a push message's data came from Hippo.
+  Future<bool> isHippoNotification(Map<String, dynamic> data) {
+    throw UnimplementedError('isHippoNotification() has not been implemented.');
+  }
+
+  /// Hands a Hippo push message to the native SDK. Returns `false` when the message isn't Hippo's.
+  Future<bool> handleHippoNotification(Map<String, dynamic> data) {
+    throw UnimplementedError('handleHippoNotification() has not been implemented.');
   }
 }

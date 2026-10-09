@@ -1,5 +1,5 @@
 # Uncomment this line to define a global platform for your project
-platform :ios, '13.0'
+platform :ios, '15.1'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -29,7 +29,9 @@ flutter_ios_podfile_setup
 
 target 'Runner' do
   use_frameworks!
-  pod 'Hippo', :git => 'https://github.com/Jungle-Works/Hippo-iOS-SDK', :branch => 'master'
+  # Hippo's newer iOS releases (2.1.59+) are tagged on GitHub but not published to CocoaPods trunk (which stops
+  # at 2.1.58); the plugin needs 2.1.66 or later. Pin a tag, never a branch.
+  pod 'Hippo', :git => 'https://github.com/Jungle-Works/Hippo-iOS-SDK.git', :tag => '2.1.72'
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
     inherit! :search_paths

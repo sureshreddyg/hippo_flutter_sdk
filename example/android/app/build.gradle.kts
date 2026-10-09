@@ -40,7 +40,7 @@ android {
 }
 dependencies {
     implementation("com.google.firebase:firebase-messaging:24.1.2")
-    implementation("io.hippochat:hippo:3.0.21.25")
+    implementation("io.hippochat:hippo:3.0.21.37")
 }
 
 flutter {

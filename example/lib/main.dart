@@ -52,7 +52,9 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final _hippoFlutterSdkPlugin = HippoFlutterSdk();
   int? _unreadCount;
+  int? _announcementCount;
   StreamSubscription<int>? _unreadCountSubscription;
+  StreamSubscription<int>? _announcementCountSubscription;
   bool _isHippoInitialized = false;
 
   void _initHippo() async {
@@ -60,8 +62,8 @@ class _MyHomePageState extends State<MyHomePage> {
       _isHippoInitialized = true;
     });
     final config = {
-      "appKey":
-          "f3a4213c67b4feb32bef5bc1db86434e", // TODO: Replace with your actual app key
+      // Your Hippo app key: flutter run --dart-define=HIPPO_APP_KEY=...
+      "appKey": const String.fromEnvironment('HIPPO_APP_KEY'),
       "appType": "1",
       // "environment": "live",
       "provider": "com.udvilabs.hippo_flutter_sdk_example.provider",
@@ -86,6 +88,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _showConversations() {
     _hippoFlutterSdkPlugin.showConversations();
+  }
+
+  Future<void> _refreshCounts() async {
+    final messages = await _hippoFlutterSdkPlugin.getUnreadCount();
+    final announcements = await _hippoFlutterSdkPlugin.getUnreadAnnouncementCount();
+    if (!mounted) return;
+    setState(() {
+      _unreadCount = messages;
+      _announcementCount = announcements;
+    });
   }
 
   void _clearHippoData() {
@@ -126,11 +138,20 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           );
         });
+    _announcementCountSubscription = _hippoFlutterSdkPlugin
+        .getUnreadAnnouncementCountStream()
+        .listen((count) {
+          if (!mounted) return;
+          setState(() {
+            _announcementCount = count;
+          });
+        });
   }
 
   @override
   void dispose() {
     _unreadCountSubscription?.cancel();
+    _announcementCountSubscription?.cancel();
     super.dispose();
   }
 
@@ -165,6 +186,23 @@ class _MyHomePageState extends State<MyHomePage> {
                         )
                         : const CircularProgressIndicator()
                     : null,
+          ),
+          _ActionCard(
+            title: 'Unread Announcements',
+            icon: Icons.campaign_outlined,
+            onTap: () {},
+            trailing: _isHippoInitialized && _announcementCount != null
+                ? Chip(
+                    label: Text('$_announcementCount'),
+                    backgroundColor: Colors.teal,
+                    labelStyle: const TextStyle(color: Colors.white),
+                  )
+                : null,
+          ),
+          _ActionCard(
+            title: 'Refresh Counts',
+            icon: Icons.refresh,
+            onTap: _refreshCounts,
           ),
           _ActionCard(
             title: 'Clear Hippo Data',

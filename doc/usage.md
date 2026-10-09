@@ -57,3 +57,37 @@ void dispose() {
   super.dispose();
 }
 ```
+
+## Unread Announcements
+
+Announcements are counted separately from messages:
+
+```dart
+_hippoFlutterSdkPlugin.getUnreadAnnouncementCountStream().listen((count) {
+  print('Unread announcement count: $count');
+});
+
+final announcements = await _hippoFlutterSdkPlugin.getUnreadAnnouncementCount();
+```
+
+`getUnreadCount()` and `getUnreadAnnouncementCount()` ask Hippo for the count; the streams send every change, starting
+with the last count known.
+
+## Push Notifications
+
+On Android, hand Hippo's FCM messages to the SDK from `FirebaseMessaging.onMessage` and from your background message
+handler, before your own notification handling:
+
+```dart
+if (await _hippoFlutterSdkPlugin.handleHippoNotification(message.data)) return;
+```
+
+Hippo shows the notification (tapping it opens the chat) and updates the unread counts. On iOS, Hippo's notifications
+come through APNs and the plugin handles them itself; `isHippoNotification(data)` tells you whether a message is
+Hippo's on both platforms.
+
+## Debug Logs
+
+In debug builds every call, count, notification and chat screen is logged with the tag `HippoFlutterSdk` (Dart,
+Android logcat, iOS console), and Hippo logs its API calls. `"debug": true` or `false` in the `initHippo` config
+overrides it.

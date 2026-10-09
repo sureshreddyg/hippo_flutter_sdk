@@ -1,0 +1,62 @@
+name: CI
+
+# Every pull request and every push to develop: the Dart checks, and the example app built on Android and iOS against
+# the Hippo SDKs it pins (the native code only compiles there). Publishing stays in publish.yml (pushes to main).
+on:
+  pull_request:
+  push:
+    branches: [develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dart:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - name: Example tests
+        working-directory: example
+        run: flutter test test
+
+  android:
+    name: Example app on Android (Hippo 3.0.21.37)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Build a debug APK
+        working-directory: example
+        run: flutter build apk --debug
+      - name: Plugin unit tests
+        working-directory: example/android
+        run: ./gradlew :hippo_flutter_sdk:testDebugUnitTest
+
+  ios:
+    name: Example app on iOS (Hippo 2.1.72)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Build for the simulator
+        working-directory: example
+        run: flutter build ios --simulator --debug
