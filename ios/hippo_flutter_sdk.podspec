@@ -4,10 +4,11 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'hippo_flutter_sdk'
-  s.version          = '0.1.0'
-  s.summary          = 'A new Flutter plugin project.'
+  s.version          = '0.4.0'
+  s.summary          = "Flutter plugin for Hippo's chat SDK."
   s.description      = <<-DESC
-A new Flutter plugin project.
+Flutter plugin for Hippo's chat SDK: conversations, peer chats, unread message and announcement counts, and Hippo push
+notifications.
                        DESC
   s.homepage         = 'https://github.com/sureshreddyg/hippo_flutter_sdk'
   s.license          = { :type => 'MIT', :file => '../LICENSE' }
@@ -15,8 +16,12 @@ A new Flutter plugin project.
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
-  s.dependency 'Hippo'
-  s.platform = :ios, '13.0'
+  # 2.1.66 added updateUnreadCount, getUnreadAnnouncementCount and the announcement delegate call the plugin uses.
+  # Hippo's releases after 2.1.58 are on GitHub only: the app's Podfile pins one, e.g.
+  #   pod 'Hippo', :git => 'https://github.com/Jungle-Works/Hippo-iOS-SDK.git', :tag => '2.1.72'
+  s.dependency 'Hippo', '>= 2.1.66'
+  # Hippo 2.1.66 and later need iOS 15.1.
+  s.platform = :ios, '15.1'
 
   # Flutter.framework does not contain a i386 slice.
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
