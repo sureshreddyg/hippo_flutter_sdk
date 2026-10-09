@@ -8,7 +8,7 @@ This guide will walk you through the process of adding the Hippo Flutter SDK to 
 
     ```yaml
     dependencies:
-      hippo_flutter_sdk: ^0.2.0 # Use the latest version
+      hippo_flutter_sdk: ^0.4.0 # Use the latest version
     ```
 
 2.  **Install the package**: Run the following command in your terminal to get the package:
@@ -44,3 +44,6 @@ void initHippo() {
 ```
 
 Replace `"YOUR_APP_KEY"` and the `userData` with your actual application key and user details.
+
+The native setup — Hippo's Android SDK in your app's Gradle file, Hippo's iOS SDK pinned in your Podfile (2.1.66 or
+later, iOS 15.1) — is in the [README](../README.md#android-setup).
