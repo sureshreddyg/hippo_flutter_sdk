@@ -20,6 +20,9 @@ notifications.
   # Hippo's releases after 2.1.58 are on GitHub only: the app's Podfile pins one, e.g.
   #   pod 'Hippo', :git => 'https://github.com/Jungle-Works/Hippo-iOS-SDK.git', :tag => '2.1.72'
   s.dependency 'Hippo', '>= 2.1.66'
+  # Hippo is a static framework (since its 2.1.6x releases): a pod depending on it must be one too, or CocoaPods refuses
+  # apps with use_frameworks! ("transitive dependencies that include statically linked binaries").
+  s.static_framework = true
   # Hippo 2.1.66 and later need iOS 15.1.
   s.platform = :ios, '15.1'
 
