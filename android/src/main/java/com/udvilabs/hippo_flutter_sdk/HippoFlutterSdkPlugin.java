@@ -30,9 +30,12 @@ import com.hippo.HippoConfigAttributes;
 import com.hippo.HippoInitCallback;
 import com.hippo.HippoNotificationConfig;
 import com.hippo.UnreadCount;
+import com.hippo.UnreadCountFor;
 import com.hippo.activity.HippoActivityLifecycleCallback;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -45,6 +48,11 @@ import java.util.concurrent.CopyOnWriteArraySet;
  * Hippo starts and kept whatever Dart listens to (the SDK drops a push's count when no listener is set). Messages
  * ({@code count}) and announcements ({@code unreadAnnouncementsCount}) are separate counts, each with its own event
  * channel and its own last value.
+ *
+ * <p>One peer chat's unread count: {@code HippoConfig.fetchUnreadCountForRequest} with the chat's attributes. Hippo
+ * keeps one {@link UnreadCountFor} callback for the process, the last one given, and calls it with the chat's
+ * transaction id when it answers, when a push brings a message for a chat it was asked about, and when that chat's
+ * messages load (0). The counts go to Dart on their own event channel, each with its transaction id.
  *
  * <p>Logging: with {@code debug} on (debuggable apps, or {@code "debug": true} in the init config) the plugin logs
  * every call and callback with the tag {@code HippoFlutterSdk}, and Hippo logs its API requests and responses.
@@ -87,16 +95,30 @@ public class HippoFlutterSdkPlugin implements FlutterPlugin, MethodCallHandler, 
 
         @Override
         public void unreadCountFor(int count) {
+            // Hippo 3.0.21 never calls this one: a chat's count comes through UnreadCountFor (CHAT_COUNTS).
             log("Hippo callback: unread count for one chat = " + count);
+        }
+    };
+
+    /**
+     * Hippo's per-chat count callback, for every attached instance. Always this one object: Hippo keeps the last
+     * callback {@code fetchUnreadCountForRequest} was given for every chat it counts.
+     */
+    private static final UnreadCountFor CHAT_COUNTS = (transactionId, count) -> {
+        log("Hippo callback: unread messages in chat " + transactionId + " = " + count);
+        for (HippoFlutterSdkPlugin plugin : attached) {
+            plugin.chatCounts.publish(transactionId, count);
         }
     };
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private final CountStream messageCounts = new CountStream("unread messages");
     private final CountStream announcementCounts = new CountStream("unread announcements");
+    private final ChatCountStream chatCounts = new ChatCountStream();
     private MethodChannel methodChannel;
     private EventChannel messageCountChannel;
     private EventChannel announcementCountChannel;
+    private EventChannel chatCountChannel;
     private Context context;
     private Activity activity;
 
@@ -118,6 +140,8 @@ public class HippoFlutterSdkPlugin implements FlutterPlugin, MethodCallHandler, 
         messageCountChannel.setStreamHandler(messageCounts);
         announcementCountChannel = new EventChannel(binding.getBinaryMessenger(), "hippo_flutter_sdk_announcement_events");
         announcementCountChannel.setStreamHandler(announcementCounts);
+        chatCountChannel = new EventChannel(binding.getBinaryMessenger(), "hippo_flutter_sdk_chat_events");
+        chatCountChannel.setStreamHandler(chatCounts);
         attached.add(this);
         log("Attached to a Flutter engine (" + attached.size() + " attached)");
     }
@@ -128,6 +152,7 @@ public class HippoFlutterSdkPlugin implements FlutterPlugin, MethodCallHandler, 
         methodChannel.setMethodCallHandler(null);
         messageCountChannel.setStreamHandler(null);
         announcementCountChannel.setStreamHandler(null);
+        chatCountChannel.setStreamHandler(null);
         log("Detached from a Flutter engine (" + attached.size() + " attached)");
     }
 
@@ -153,6 +178,9 @@ public class HippoFlutterSdkPlugin implements FlutterPlugin, MethodCallHandler, 
                     break;
                 case "getUnreadAnnouncementCount":
                     getUnreadAnnouncementCount(result);
+                    break;
+                case "getChatUnreadCount":
+                    getChatUnreadCount(call, result);
                     break;
                 case "isHippoNotification":
                     isHippoNotification(call, result);
@@ -331,6 +359,7 @@ public class HippoFlutterSdkPlugin implements FlutterPlugin, MethodCallHandler, 
         for (HippoFlutterSdkPlugin plugin : attached) {
             plugin.messageCounts.publish(0);
             plugin.announcementCounts.publish(0);
+            plugin.chatCounts.clear();
         }
         result.success(null);
     }
@@ -372,6 +401,51 @@ public class HippoFlutterSdkPlugin implements FlutterPlugin, MethodCallHandler, 
         } catch (RuntimeException e) {
             Log.w(TAG, "getUnreadAnnouncementCount: Hippo couldn't be asked", e);
             announcementCounts.answerWaiting();
+        }
+    }
+
+    private void getChatUnreadCount(MethodCall call, Result result) {
+        String transactionId;
+        ChatByUniqueIdAttributes chat;
+        try {
+            JSONObject peerChatData = new JSONObject((String) call.arguments);
+            transactionId = peerChatData.optString("transactionId", "");
+            JSONArray otherUserUniqueKeysJson = peerChatData.optJSONArray("otherUserUniqueKeys");
+            ArrayList<String> otherUserUniqueKeys = new ArrayList<>();
+            for (int i = 0; otherUserUniqueKeysJson != null && i < otherUserUniqueKeysJson.length(); i++) {
+                otherUserUniqueKeys.add(otherUserUniqueKeysJson.getString(i));
+            }
+            String missing = HippoArgs.missingForChatCount(transactionId, otherUserUniqueKeys);
+            if (missing != null) {
+                result.error("INVALID_ARGUMENT", "getChatUnreadCount needs " + missing, null);
+                return;
+            }
+            // The attributes openPeerChat opens the chat with: Hippo finds the chat by them.
+            chat = new ChatByUniqueIdAttributes.Builder()
+                    .setTransactionId(transactionId)
+                    .setUserUniqueKey(peerChatData.optString("userUniqueKey", ""))
+                    .setChannelName(peerChatData.optString("channelName", ""))
+                    .setOtherUserUniqueKeys(otherUserUniqueKeys)
+                    .build();
+        } catch (JSONException | ClassCastException | NullPointerException e) {
+            result.error("INVALID_ARGUMENT", "Invalid JSON for peer chat: " + e.getMessage(), null);
+            return;
+        }
+        if (!hippoInitialized) {
+            log("getChatUnreadCount: Hippo isn't initialised; answering the last count known for chat " + transactionId
+                    + ", " + chatCounts.last(transactionId));
+            result.success(chatCounts.last(transactionId));
+            return;
+        }
+        chatCounts.awaitNext(transactionId, result);
+        try {
+            // Hippo answers at once when it knows the chat, else once its server does; never for a chat it couldn't
+            // find (the wait answers then).
+            log("getChatUnreadCount: asking Hippo for chat " + transactionId);
+            HippoConfig.getInstance().fetchUnreadCountForRequest(chat, CHAT_COUNTS);
+        } catch (RuntimeException e) {
+            Log.w(TAG, "getChatUnreadCount: Hippo couldn't be asked", e);
+            chatCounts.answerWaiting(transactionId);
         }
     }
 
@@ -511,6 +585,95 @@ public class HippoFlutterSdkPlugin implements FlutterPlugin, MethodCallHandler, 
 
         int lastOrZero() {
             return last == null ? 0 : last;
+        }
+    }
+
+    /** Peer-chat unread counts: the event channel's listener, each chat's last count, and the calls waiting for one. */
+    private final class ChatCountStream implements EventChannel.StreamHandler {
+        private final Map<String, Integer> last = new LinkedHashMap<>();
+        private final Map<String, List<Result>> waiting = new HashMap<>();
+        private EventChannel.EventSink sink;
+
+        @Override
+        public void onListen(Object arguments, EventChannel.EventSink events) {
+            sink = events;
+            log("Dart is listening for chat unread counts; sending the last count of " + last.size() + " chats");
+            for (Map.Entry<String, Integer> entry : last.entrySet()) {
+                events.success(HippoArgs.chatCount(entry.getKey(), entry.getValue()));
+            }
+        }
+
+        @Override
+        public void onCancel(Object arguments) {
+            sink = null;
+            log("Dart stopped listening for chat unread counts");
+        }
+
+        /** A chat's count from Hippo, on any thread: kept, sent to Dart, and given to every call waiting for it. */
+        void publish(String transactionId, int count) {
+            main.post(() -> {
+                last.put(transactionId, count);
+                if (sink != null) {
+                    sink.success(HippoArgs.chatCount(transactionId, count));
+                }
+                List<Result> answered = waiting.remove(transactionId);
+                if (answered != null) {
+                    for (Result result : answered) {
+                        result.success(count);
+                    }
+                }
+            });
+        }
+
+        /**
+         * Answers {@code result} with Hippo's next count for the chat, or after a while with its last count known (null
+         * when there's none). Main thread.
+         */
+        void awaitNext(String transactionId, Result result) {
+            List<Result> forChat = waiting.get(transactionId);
+            if (forChat == null) {
+                forChat = new ArrayList<>();
+                waiting.put(transactionId, forChat);
+            }
+            forChat.add(result);
+            main.postDelayed(() -> {
+                List<Result> stillWaiting = waiting.get(transactionId);
+                if (stillWaiting != null && stillWaiting.remove(result)) {
+                    if (stillWaiting.isEmpty()) {
+                        waiting.remove(transactionId);
+                    }
+                    log("No count for chat " + transactionId + " from Hippo within " + COUNT_WAIT_MS
+                            + " ms; answering the last count known, " + last.get(transactionId));
+                    result.success(last.get(transactionId));
+                }
+            }, COUNT_WAIT_MS);
+        }
+
+        /** Answers every call waiting for the chat with its last count known (Hippo couldn't be asked). */
+        void answerWaiting(String transactionId) {
+            List<Result> answered = waiting.remove(transactionId);
+            if (answered != null) {
+                for (Result result : answered) {
+                    result.success(last.get(transactionId));
+                }
+            }
+        }
+
+        /** The chat's last count known, or null. Main thread. */
+        Integer last(String transactionId) {
+            return last.get(transactionId);
+        }
+
+        /** Signed out: every chat's count goes to 0 on the stream, and the counts are forgotten. */
+        void clear() {
+            main.post(() -> {
+                if (sink != null) {
+                    for (String transactionId : last.keySet()) {
+                        sink.success(HippoArgs.chatCount(transactionId, 0));
+                    }
+                }
+                last.clear();
+            });
         }
     }
 }

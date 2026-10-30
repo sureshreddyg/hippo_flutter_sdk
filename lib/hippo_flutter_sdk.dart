@@ -1,4 +1,7 @@
 import 'hippo_flutter_sdk_platform_interface.dart';
+import 'src/chat_unread_count.dart';
+
+export 'src/chat_unread_count.dart';
 
 /// The main class for interacting with the Hippo Flutter SDK.
 ///
@@ -65,6 +68,27 @@ class HippoFlutterSdk {
   /// for the peer chat, such as the transaction ID and user keys.
   Future<void> openPeerChat(String peerChatData) {
     return HippoFlutterSdkPlatform.instance.openPeerChat(peerChatData);
+  }
+
+  /// Asks Hippo for the number of unread messages in one peer chat and returns it.
+  ///
+  /// [peerChatData] is the JSON string [openPeerChat] opens that chat with: `transactionId`, `userUniqueKey` and
+  /// `otherUserUniqueKeys` (`channelName` may be there too). Unlike [getUnreadCount], which totals every chat the
+  /// user ever had, this counts that chat only.
+  ///
+  /// The count is also sent on [getChatUnreadCountStream]. Returns `null` when Hippo can't tell: before [initHippo],
+  /// or when it doesn't answer within 8 seconds and the chat has no count yet.
+  Future<int?> getChatUnreadCount(String peerChatData) {
+    return HippoFlutterSdkPlatform.instance.getChatUnreadCount(peerChatData);
+  }
+
+  /// A stream of peer-chat unread counts, each with its chat's `transactionId`.
+  ///
+  /// Hippo reports a chat's count when [getChatUnreadCount] asks, when a message arrives in it, and when it's read
+  /// (0). Only chats asked about with [getChatUnreadCount] are counted. A new listener first gets the last count of
+  /// each of them. Every count goes back to 0 on [clearHippoData].
+  Stream<ChatUnreadCount> getChatUnreadCountStream() {
+    return HippoFlutterSdkPlatform.instance.getChatUnreadCountStream();
   }
 
   /// Whether a push message's data (FCM `RemoteMessage.data`) came from Hippo.

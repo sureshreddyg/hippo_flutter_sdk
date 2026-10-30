@@ -10,6 +10,7 @@ A Flutter plugin for integrating the Hippo customer support platform into your m
 - Initialize the Hippo SDK with your application credentials.
 - Display the chat conversations view, or open a peer-to-peer chat.
 - Unread **message** and **announcement** counts, as streams and on request.
+- The unread message count of **one peer chat**, for a badge per chat.
 - Hippo push notifications: shown by Hippo on Android, handled through APNs on iOS; tapping one opens the chat.
 - Debug logging on Android, iOS and Dart.
 - Clear all user data upon logout.
@@ -18,7 +19,7 @@ A Flutter plugin for integrating the Hippo customer support platform into your m
 
 ```yaml
 dependencies:
-  hippo_flutter_sdk: ^0.4.0
+  hippo_flutter_sdk: ^0.5.0
 ```
 
 Then run `flutter pub get`.
@@ -43,7 +44,7 @@ Jetifier; 3.0.21.37 is the version the plugin is built and tested with.
 
 ## iOS Setup
 
-The plugin needs Hippo **2.1.66 or later** (iOS **15.1** or later). Hippo's releases after 2.1.58 are only on GitHub, not
+The plugin needs Hippo **2.1.72 or later** (iOS **15.1** or later). Hippo's releases after 2.1.58 are only on GitHub, not
 on CocoaPods trunk, so pin one in your `ios/Podfile`:
 
 ```ruby
@@ -103,6 +104,32 @@ final announcements = await hippo.getUnreadAnnouncementCount();
 
 A new listener first gets the last count known. Both counts go back to 0 on `clearHippoData()`.
 
+### Unread messages in one chat
+
+`getUnreadCount()` totals every chat the user ever had, so one old unread chat keeps it above 0. To show a badge per
+peer chat (say, one per order), ask for that chat's count with the same JSON that `openPeerChat` opens it with:
+
+```dart
+final chat = jsonEncode({
+  "transactionId": "AK806", // the chat's transaction id
+  "userUniqueKey": "UNIQUE_USER_ID",
+  "otherUserUniqueKeys": ["driver42"],
+  "channelName": "#AK806",
+});
+
+final count = await hippo.getChatUnreadCount(chat); // null when Hippo can't tell yet
+
+hippo.getChatUnreadCountStream().listen((chatCount) {
+  print('${chatCount.transactionId}: ${chatCount.count} unread');
+});
+```
+
+Only chats asked about are counted. Their counts come on the stream whenever Hippo reports one: when you ask, when a
+message arrives in the chat, and when the chat is opened (0). Ask again when the app comes back to the foreground: on
+iOS the answer then comes fresh from Hippo's server, which also counts messages that arrived while the app was in the
+background. On Android, Hippo counts those from the pushes you hand to `handleHippoNotification`. All chat counts go
+to 0 on `clearHippoData()`.
+
 ### Push notifications (Android)
 
 Hippo's pushes reach your app through FCM. Hand them to Hippo, before any other notification handling, both in the
@@ -130,6 +157,12 @@ In debug builds the plugin logs what it does with the tag `HippoFlutterSdk`: eve
 notifications, and opening the chat screens. On Android, Hippo also logs its API requests and responses; on iOS, Hippo
 prints its API calls to the console itself. Set `"debug": true` or `false` in the `initHippo` config to override it,
 for example to see the logs in a release build. Keys, secrets and tokens are masked.
+
+## Upgrading from 0.4.x
+
+- iOS needs Hippo **2.1.72** or later (it was 2.1.66): one chat's count uses `fetchChatUnreadCount`, new in 2.1.72.
+  Pin the tag in your Podfile as above, then `pod update Hippo`.
+- Nothing else changes: `getChatUnreadCount` and `getChatUnreadCountStream` are new.
 
 ## Upgrading from 0.3.x
 

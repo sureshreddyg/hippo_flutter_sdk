@@ -30,7 +30,7 @@ flutter_ios_podfile_setup
 target 'Runner' do
   use_frameworks!
   # Hippo's newer iOS releases (2.1.59+) are tagged on GitHub but not published to CocoaPods trunk (which stops
-  # at 2.1.58); the plugin needs 2.1.66 or later. Pin a tag, never a branch.
+  # at 2.1.58); the plugin needs 2.1.72 or later. Pin a tag, never a branch.
   pod 'Hippo', :git => 'https://github.com/Jungle-Works/Hippo-iOS-SDK.git', :tag => '2.1.72'
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
