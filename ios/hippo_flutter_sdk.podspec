@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'hippo_flutter_sdk'
-  s.version          = '0.4.0'
+  s.version          = '0.5.0'
   s.summary          = "Flutter plugin for Hippo's chat SDK."
   s.description      = <<-DESC
 Flutter plugin for Hippo's chat SDK: conversations, peer chats, unread message and announcement counts, and Hippo push
@@ -16,10 +16,11 @@ notifications.
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
-  # 2.1.66 added updateUnreadCount, getUnreadAnnouncementCount and the announcement delegate call the plugin uses.
+  # 2.1.66 added updateUnreadCount, getUnreadAnnouncementCount and the announcement delegate call the plugin uses;
+  # 2.1.72 added fetchChatUnreadCount (one chat's count from Hippo's server).
   # Hippo's releases after 2.1.58 are on GitHub only: the app's Podfile pins one, e.g.
   #   pod 'Hippo', :git => 'https://github.com/Jungle-Works/Hippo-iOS-SDK.git', :tag => '2.1.72'
-  s.dependency 'Hippo', '>= 2.1.66'
+  s.dependency 'Hippo', '>= 2.1.72'
   # Hippo is a static framework (since its 2.1.6x releases): a pod depending on it must be one too, or CocoaPods refuses
   # apps with use_frameworks! ("transitive dependencies that include statically linked binaries").
   s.static_framework = true

@@ -1,6 +1,7 @@
 package com.udvilabs.hippo_flutter_sdk;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /** The plugin's helpers that don't touch the Hippo SDK (a compile-only dependency), so they're unit-tested without it. */
@@ -32,5 +33,28 @@ final class HippoArgs {
             }
         }
         return data;
+    }
+
+    /**
+     * What a peer chat's unread count can't be asked without, or null when nothing's missing. Hippo shows the user a
+     * toast, and never answers, when the transaction id or the other users are missing.
+     */
+    static String missingForChatCount(String transactionId, List<String> otherUserUniqueKeys) {
+        if (transactionId == null || transactionId.isEmpty()) {
+            return "transactionId";
+        }
+        if (otherUserUniqueKeys == null || otherUserUniqueKeys.isEmpty() || otherUserUniqueKeys.get(0) == null
+                || otherUserUniqueKeys.get(0).isEmpty()) {
+            return "otherUserUniqueKeys";
+        }
+        return null;
+    }
+
+    /** A peer chat's unread count as Dart receives it: {@code {"transactionId": "…", "count": 2}}. */
+    static Map<String, Object> chatCount(String transactionId, int count) {
+        Map<String, Object> event = new HashMap<>();
+        event.put("transactionId", transactionId);
+        event.put("count", count);
+        return event;
     }
 }

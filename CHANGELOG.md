@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.5.0
+
+The unread count of one peer chat, for a badge per chat. `getUnreadCount()` totals every chat the user ever had, so
+one old unread chat kept it above 0 and lit every badge.
+
+* **New: `getChatUnreadCount(peerChatData)`** answers one chat's unread count. It takes the JSON `openPeerChat` opens
+  the chat with. **`getChatUnreadCountStream()`** sends each chat's count, with its `transactionId`, whenever Hippo
+  reports one: when asked, when a message arrives in the chat, and when it's opened (0).
+* **Android:** Hippo's `fetchUnreadCountForRequest` and its `UnreadCountFor` callback. Hippo counts a chat's later
+  messages from the pushes handed to `handleHippoNotification`.
+* **iOS:** `fetchUnreadCountFor` finds the chat the first time; after that the count comes from Hippo's server by the
+  chat's channel (`fetchChatUnreadCount`). `fetchUnreadCountFor` answers a chat it knows from memory, which misses
+  messages that arrived while the app was in the background. The plugin learns each chat's channel from Hippo's answers
+  and pushes, and from Notification Centre for a chat whose first message came while the app was closed.
+* A request Hippo doesn't answer gets the chat's last count known (or `null`) after 8 seconds. Android's Hippo never
+  answers for a chat it couldn't find, and iOS's answers through its delegate only for a chat it knows.
+* **iOS needs Hippo 2.1.72 or later** (it was 2.1.66): `fetchChatUnreadCount` is new in 2.1.72.
+
 ## 0.4.0
 
 Unread counts and notifications, as advised by the Hippo team.

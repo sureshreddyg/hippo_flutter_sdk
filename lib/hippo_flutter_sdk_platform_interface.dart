@@ -1,6 +1,7 @@
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'hippo_flutter_sdk_method_channel.dart';
+import 'src/chat_unread_count.dart';
 
 /// The interface that platform-specific implementations of `hippo_flutter_sdk` must extend.
 ///
@@ -69,6 +70,18 @@ abstract class HippoFlutterSdkPlatform extends PlatformInterface {
   Stream<int> getUnreadAnnouncementCountStream() {
     throw UnimplementedError(
       'getUnreadAnnouncementCountStream() has not been implemented.',
+    );
+  }
+
+  /// Asks Hippo for one peer chat's unread message count and returns it.
+  Future<int?> getChatUnreadCount(String peerChatData) {
+    throw UnimplementedError('getChatUnreadCount() has not been implemented.');
+  }
+
+  /// A stream of peer-chat unread counts from the native platform.
+  Stream<ChatUnreadCount> getChatUnreadCountStream() {
+    throw UnimplementedError(
+      'getChatUnreadCountStream() has not been implemented.',
     );
   }
 
