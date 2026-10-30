@@ -10,6 +10,7 @@ import Hippo
 ///   `getUnreadAnnouncementCount(completion:)` for announcements. Hippo answers the second through
 ///   `HippoDelegate.hippoAnnouncementCustomerUnreadCount` (it never calls that completion), so both counts come in
 ///   through the delegate as well, each on its own event channel with its own last value.
+/// - One peer chat's unread count: see `ChatCounts`. Those counts have their own event channel too.
 /// - Notifications: Hippo pushes through APNs, so the plugin gives Hippo the APNs token (from the app delegate, or
 ///   `apnsToken` in the init config), refreshes the counts when a Hippo push arrives, and opens the chat when one is
 ///   tapped — after `initHippo` if the tap launched the app.
@@ -22,6 +23,7 @@ public class HippoFlutterSdkPlugin: NSObject, FlutterPlugin {
     private let manager = HippoManager()
     private let messageCounts = CountStream(label: "unread messages")
     private let announcementCounts = CountStream(label: "unread announcements")
+    private let chatCounts = ChatCounts()
     private var isInitialized = false
     private var userDetail: HippoUserDetail?
     /// A Hippo notification tapped before `initHippo` (it launched the app): opened once Hippo is initialised.
@@ -35,6 +37,8 @@ public class HippoFlutterSdkPlugin: NSObject, FlutterPlugin {
             .setStreamHandler(instance.messageCounts)
         FlutterEventChannel(name: "hippo_flutter_sdk_announcement_events", binaryMessenger: registrar.messenger())
             .setStreamHandler(instance.announcementCounts)
+        FlutterEventChannel(name: "hippo_flutter_sdk_chat_events", binaryMessenger: registrar.messenger())
+            .setStreamHandler(instance.chatCounts)
         // The APNs token and Hippo's notifications come through the app delegate.
         registrar.addApplicationDelegate(instance)
         HippoLog.d("Registered (iOS)")
@@ -44,6 +48,9 @@ public class HippoFlutterSdkPlugin: NSObject, FlutterPlugin {
         super.init()
         manager.onUnreadCount = { [weak self] count in self?.messageCounts.publish(count) }
         manager.onAnnouncementCount = { [weak self] count in self?.announcementCounts.publish(count) }
+        manager.onChatCount = { [weak self] count, channelId in
+            self?.chatCounts.hippoReported(channelId: channelId, count: count)
+        }
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -68,11 +75,14 @@ public class HippoFlutterSdkPlugin: NSObject, FlutterPlugin {
             pendingTap = nil
             messageCounts.publish(0)
             announcementCounts.publish(0)
+            chatCounts.clear()
             result(nil)
         case "getUnreadCount":
             getUnreadCount(result)
         case "getUnreadAnnouncementCount":
             getUnreadAnnouncementCount(result)
+        case "getChatUnreadCount":
+            getChatUnreadCount(call, result: result)
         case "isHippoNotification":
             let data = call.arguments as? [String: Any] ?? [:]
             let isHippo = HippoConfig.shared.isHippoNotification(withUserInfo: data)
@@ -234,6 +244,31 @@ public class HippoFlutterSdkPlugin: NSObject, FlutterPlugin {
         }
     }
 
+    private func getChatUnreadCount(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let data = call.arguments as? String, let json = data.data(using: .utf8),
+              let dict = (try? JSONSerialization.jsonObject(with: json, options: [])) as? [String: Any] else {
+            result(FlutterError(code: "INVALID_ARGUMENT", message: "Invalid data for peer chat", details: nil))
+            return
+        }
+        guard let transactionId = dict["transactionId"] as? String, !transactionId.isEmpty,
+              let otherUserUniqueKeys = dict["otherUserUniqueKeys"] as? [String],
+              let chat = PeerToPeerChat(uniqueChatId: transactionId,
+                                        myUniqueId: dict["userUniqueKey"] as? String ?? "",
+                                        idsOfPeers: otherUserUniqueKeys,
+                                        channelName: dict["channelName"] as? String ?? "") else {
+            result(FlutterError(code: "INVALID_ARGUMENT",
+                                message: "getChatUnreadCount needs transactionId and otherUserUniqueKeys", details: nil))
+            return
+        }
+        guard isInitialized else {
+            HippoLog.d("getChatUnreadCount: Hippo isn't initialised; answering the last count known for chat "
+                + transactionId)
+            result(chatCounts.last(transactionId))
+            return
+        }
+        chatCounts.ask(chat, transactionId: transactionId, result: result)
+    }
+
     /// Both counts, fresh from Hippo: after signing in, and when a Hippo push arrives.
     private func refreshCounts() {
         guard isInitialized else { return }
@@ -243,7 +278,9 @@ public class HippoFlutterSdkPlugin: NSObject, FlutterPlugin {
     }
 
     /// A Hippo push arrived (foreground, background, or passed from Dart): Hippo's own counters, then fresh counts.
+    /// Its chat's channel first, so the chat count Hippo reports for it finds the chat.
     private func hippoPushArrived(_ userInfo: [String: Any]) {
+        chatCounts.pushArrived(userInfo)
         HippoConfig.shared.managePromotionOrP2pCount(userInfo)
         refreshCounts()
     }
@@ -299,6 +336,7 @@ public class HippoFlutterSdkPlugin: NSObject, FlutterPlugin {
                                        withCompletionHandler completionHandler: @escaping () -> Void) {
         let info = HippoLog.stringKeys(response.notification.request.content.userInfo)
         guard HippoConfig.shared.isHippoNotification(withUserInfo: info) else { return }
+        chatCounts.pushArrived(info)
         if isInitialized {
             HippoLog.d("Hippo notification tapped: opening the chat (channel \(info["channel_id"] ?? "?"))")
             HippoConfig.shared.handleRemoteNotification(userInfo: info)
@@ -366,10 +404,228 @@ final class CountStream: NSObject, FlutterStreamHandler {
     }
 }
 
+/// Unread counts of single peer chats, by the chat's transaction id, on their own event channel.
+///
+/// - Hippo counts a chat by its channel id. The first time a chat is asked about, `fetchUnreadCountFor` finds it by
+///   its transaction id: Hippo's server answers through `sendp2pUnreadCount`, with the channel id, and then the
+///   completion, both on the main thread. After that the plugin asks Hippo's server for the channel's count
+///   (`fetchChatUnreadCount`): `fetchUnreadCountFor` answers a chat it knows from memory, without the completion, and
+///   that memory misses messages that came while the app was in the background.
+/// - Hippo also reports a chat's count when a message comes in while the app is open (its socket), when a push brings
+///   the first message of a chat it hadn't found, and when the chat is opened (0). Those go to Dart as they come.
+/// - A Hippo push names its chat and channel (`chat_transaction_id`, `channel_id`), so the plugin learns the channel
+///   from the pushes it sees, and from Notification Centre for a chat whose first message came while it was closed.
+final class ChatCounts: NSObject, FlutterStreamHandler {
+    private static let wait: TimeInterval = 8
+
+    private var sink: FlutterEventSink?
+    /// Each chat's last count, by transaction id.
+    private var counts: [String: Int] = [:]
+    /// Each chat's Hippo channel, by transaction id, once known.
+    private var channels: [String: Int] = [:]
+    /// The chats Dart asked about.
+    private var asked: Set<String> = []
+    private var waiting: [String: [(id: UUID, result: FlutterResult)]] = [:]
+    /// The chat `fetchUnreadCountFor` is being asked about: Hippo answers a chat it knows inside that call.
+    private var asking: String?
+    /// Hippo's last `sendp2pUnreadCount`, for the server answer that follows it.
+    private var lastReport: (channelId: Int, count: Int)?
+
+    func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        sink = events
+        HippoLog.d("Dart is listening for chat unread counts; sending the last count of \(counts.count) chats")
+        for (transactionId, count) in counts {
+            events(ChatCounts.event(transactionId, count))
+        }
+        return nil
+    }
+
+    func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        sink = nil
+        HippoLog.d("Dart stopped listening for chat unread counts")
+        return nil
+    }
+
+    /// The chat's last count known, or nil.
+    func last(_ transactionId: String) -> Int? {
+        return counts[transactionId]
+    }
+
+    /// Asks Hippo for a chat's count. `result` gets it, or after a while the last count known (nil without one).
+    /// Main thread.
+    func ask(_ chat: PeerToPeerChat, transactionId: String, result: @escaping FlutterResult) {
+        asked.insert(transactionId)
+        awaitNext(transactionId, result)
+        if let channelId = channels[transactionId] {
+            askServer(transactionId, channelId: channelId)
+            return
+        }
+        HippoLog.d("getChatUnreadCount: asking Hippo for chat \(transactionId) (fetchUnreadCountFor)")
+        asking = transactionId
+        lastReport = nil
+        HippoConfig.shared.fetchUnreadCountFor(request: chat) { [weak self] error, count in
+            self?.fetched(transactionId, failed: error != nil, count: count)
+        }
+        asking = nil
+    }
+
+    /// A chat's count from Hippo's server, by its channel. (Hippo answers 0 when its server fails.)
+    private func askServer(_ transactionId: String, channelId: Int) {
+        HippoLog.d("getChatUnreadCount: asking Hippo's server for chat \(transactionId) (channel \(channelId))")
+        HippoConfig.shared.fetchChatUnreadCount(channelId: channelId) { [weak self] count in
+            DispatchQueue.main.async {
+                self?.update(transactionId, count, from: "Hippo's server")
+            }
+        }
+    }
+
+    /// `fetchUnreadCountFor` answered: its server found the chat (the channel came in `sendp2pUnreadCount` just
+    /// before), or Hippo couldn't count it.
+    private func fetched(_ transactionId: String, failed: Bool, count: Int?) {
+        if !failed, let count = count {
+            if let report = lastReport, report.channelId > 0, report.count == count {
+                learn(transactionId, channelId: report.channelId)
+            }
+            update(transactionId, count, from: "Hippo's server")
+            return
+        }
+        // No message in the chat when Hippo looked, or its server failed. A notification of a first message since may
+        // say which channel the chat is.
+        HippoLog.d("Hippo couldn't count chat \(transactionId); looking for its channel in Notification Centre")
+        UNUserNotificationCenter.current().getDeliveredNotifications { [weak self] notifications in
+            let infos = notifications.map { HippoLog.stringKeys($0.request.content.userInfo) }
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                for info in infos where ChatCounts.string(info["chat_transaction_id"]) == transactionId {
+                    if let channelId = ChatCounts.int(info["channel_id"]), channelId > 0 {
+                        self.learn(transactionId, channelId: channelId)
+                        self.askServer(transactionId, channelId: channelId)
+                        return
+                    }
+                }
+                HippoLog.d("No channel for chat \(transactionId) yet; answering its last count known")
+                self.answerWaiting(transactionId)
+            }
+        }
+    }
+
+    /// Hippo's `sendp2pUnreadCount`: a chat's count, by channel id. Any thread.
+    func hippoReported(channelId: Int, count: Int) {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in self?.hippoReported(channelId: channelId, count: count) }
+            return
+        }
+        lastReport = (channelId: channelId, count: count)
+        // A channel id of 0 or less is Hippo's mark for a chat it couldn't find.
+        guard channelId > 0 else { return }
+        if let transactionId = asking {
+            // Hippo knows the chat and answered from memory, which misses messages that came while the app was in the
+            // background: its server's count instead.
+            learn(transactionId, channelId: channelId)
+            askServer(transactionId, channelId: channelId)
+            return
+        }
+        guard let transactionId = channels.first(where: { $0.value == channelId })?.key else {
+            HippoLog.d("Hippo: chat \(channelId) unread \(count), not one asked about (yet)")
+            return
+        }
+        update(transactionId, count, from: "Hippo")
+    }
+
+    /// A Hippo push names its chat and channel: learnt before Hippo counts the push, so its report finds the chat.
+    func pushArrived(_ userInfo: [String: Any]) {
+        guard let transactionId = ChatCounts.string(userInfo["chat_transaction_id"]), asked.contains(transactionId),
+              let channelId = ChatCounts.int(userInfo["channel_id"]), channelId > 0 else { return }
+        learn(transactionId, channelId: channelId)
+    }
+
+    /// Signed out: every chat's count goes to 0 on the stream, and the chats are forgotten.
+    func clear() {
+        for transactionId in counts.keys {
+            sink?(ChatCounts.event(transactionId, 0))
+        }
+        let answered = waiting.values.flatMap { $0 }
+        counts.removeAll()
+        channels.removeAll()
+        asked.removeAll()
+        waiting.removeAll()
+        answered.forEach { $0.result(nil) }
+    }
+
+    private func learn(_ transactionId: String, channelId: Int) {
+        guard channels[transactionId] != channelId else { return }
+        channels[transactionId] = channelId
+        HippoLog.d("Chat \(transactionId) is Hippo channel \(channelId)")
+    }
+
+    /// A chat's count: kept, sent to Dart, and given to every call waiting for it.
+    private func update(_ transactionId: String, _ count: Int, from source: String) {
+        guard asked.contains(transactionId) else { return }
+        HippoLog.d("\(source): chat \(transactionId) unread \(count)")
+        counts[transactionId] = count
+        sink?(ChatCounts.event(transactionId, count))
+        let answered = waiting.removeValue(forKey: transactionId) ?? []
+        answered.forEach { $0.result(count) }
+    }
+
+    private func awaitNext(_ transactionId: String, _ result: @escaping FlutterResult) {
+        let id = UUID()
+        waiting[transactionId, default: []].append((id: id, result: result))
+        DispatchQueue.main.asyncAfter(deadline: .now() + ChatCounts.wait) { [weak self] in
+            guard let self = self, var forChat = self.waiting[transactionId],
+                  let index = forChat.firstIndex(where: { $0.id == id }) else { return }
+            forChat.remove(at: index)
+            self.waiting[transactionId] = forChat.isEmpty ? nil : forChat
+            HippoLog.d("No count for chat \(transactionId) from Hippo within \(Int(ChatCounts.wait)) s; answering its "
+                + "last count known, \(self.counts[transactionId].map { "\($0)" } ?? "none")")
+            result(self.counts[transactionId])
+        }
+    }
+
+    /// Answers every call waiting for the chat with its last count known (nil without one).
+    private func answerWaiting(_ transactionId: String) {
+        let count = counts[transactionId]
+        let answered = waiting.removeValue(forKey: transactionId) ?? []
+        answered.forEach { $0.result(count) }
+    }
+
+    static func event(_ transactionId: String, _ count: Int) -> [String: Any] {
+        return ["transactionId": transactionId, "count": count]
+    }
+
+    /// A push value as text: Hippo sends ids as strings or numbers.
+    static func string(_ value: Any?) -> String? {
+        guard let value = value else { return nil }
+        switch value {
+        case let text as String:
+            return text.isEmpty ? nil : text
+        case let number as NSNumber:
+            return number.stringValue
+        default:
+            return nil
+        }
+    }
+
+    /// A push value as a number: Hippo sends ids as numbers or strings.
+    static func int(_ value: Any?) -> Int? {
+        guard let value = value else { return nil }
+        switch value {
+        case let number as NSNumber:
+            return number.intValue
+        case let text as String:
+            return Int(text)
+        default:
+            return nil
+        }
+    }
+}
+
 /// Hippo's delegate: the counts it reports, and a log line for everything else it tells the app.
 final class HippoManager: HippoDelegate {
     var onUnreadCount: ((Int) -> Void)?
     var onAnnouncementCount: ((Int) -> Void)?
+    /// A peer chat's count and its channel id. Called on Hippo's thread, inside the Hippo call that caused it.
+    var onChatCount: ((Int, Int) -> Void)?
 
     func hippoUnreadCount(_ totalCount: Int) {
         onUnreadCount?(totalCount)
@@ -385,6 +641,7 @@ final class HippoManager: HippoDelegate {
 
     func sendp2pUnreadCount(unreadCount: Int, channelId: Int) {
         HippoLog.d("Hippo delegate: peer chat \(channelId) unread \(unreadCount)")
+        onChatCount?(unreadCount, channelId)
     }
 
     func hippoDeinit() {

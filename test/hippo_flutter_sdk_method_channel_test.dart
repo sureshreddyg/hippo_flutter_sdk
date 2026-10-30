@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hippo_flutter_sdk/hippo_flutter_sdk.dart';
 import 'package:hippo_flutter_sdk/hippo_flutter_sdk_method_channel.dart';
 import 'package:hippo_flutter_sdk/src/hippo_log.dart';
 
@@ -22,6 +23,8 @@ void main() {
           return 4;
         case 'getUnreadAnnouncementCount':
           return 1;
+        case 'getChatUnreadCount':
+          return (jsonDecode(call.arguments as String) as Map)['transactionId'] == 'AK806' ? 2 : null;
         case 'isHippoNotification':
         case 'handleHippoNotification':
           return (call.arguments as Map)['push_source'] == 'FUGU';
@@ -60,6 +63,40 @@ void main() {
     expect(await platform.getUnreadCount(), 4);
     expect(await platform.getUnreadAnnouncementCount(), 1);
     expect(calls.map((c) => c.method), ['getUnreadCount', 'getUnreadAnnouncementCount']);
+  });
+
+  group('one chat', () {
+    final chat = jsonEncode({
+      'transactionId': 'AK806',
+      'userUniqueKey': 'u-1',
+      'otherUserUniqueKeys': ['driver12'],
+      'channelName': '#AK806',
+    });
+
+    test("asks for the chat with the data openPeerChat opens it with", () async {
+      expect(await platform.getChatUnreadCount(chat), 2);
+      expect(calls.single.method, 'getChatUnreadCount');
+      expect(calls.single.arguments, chat);
+    });
+
+    test("a chat Hippo can't count yet is null", () async {
+      expect(await platform.getChatUnreadCount(jsonEncode({'transactionId': 'AK900'})), isNull);
+    });
+
+    test('each count on the stream names its chat', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockStreamHandler(
+        const EventChannel('hippo_flutter_sdk_chat_events'),
+        MockStreamHandler.inline(onListen: (arguments, events) {
+          events.success({'transactionId': 'AK806', 'count': 2});
+          events.success({'transactionId': 'AK807', 'count': 0});
+          events.endOfStream();
+        }),
+      );
+      expect(await platform.getChatUnreadCountStream().toList(), [
+        const ChatUnreadCount('AK806', 2),
+        const ChatUnreadCount('AK807', 0),
+      ]);
+    });
   });
 
   group('notifications', () {

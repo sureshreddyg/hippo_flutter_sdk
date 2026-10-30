@@ -38,6 +38,16 @@ class MockHippoFlutterSdkPlatform
 
   @override
   Future<bool> handleHippoNotification(Map<String, dynamic> data) async => data['push_source'] == 'FUGU';
+
+  @override
+  Future<int?> getChatUnreadCount(String peerChatData) async {
+    calls.add('getChatUnreadCount $peerChatData');
+    return 1;
+  }
+
+  @override
+  Stream<ChatUnreadCount> getChatUnreadCountStream() =>
+      Stream.fromIterable(const [ChatUnreadCount('AK806', 1), ChatUnreadCount('AK806', 0)]);
 }
 
 void main() {
@@ -69,6 +79,15 @@ void main() {
       expect(await hippo.getUnreadAnnouncementCount(), 2);
       expect(await hippo.getUnreadCountStream().toList(), [3, 0]);
       expect(await hippo.getUnreadAnnouncementCountStream().toList(), [2]);
+    });
+
+    test("one chat's count", () async {
+      expect(await hippo.getChatUnreadCount('{"transactionId":"AK806"}'), 1);
+      expect(platform.calls, ['getChatUnreadCount {"transactionId":"AK806"}']);
+      expect(await hippo.getChatUnreadCountStream().toList(), const [
+        ChatUnreadCount('AK806', 1),
+        ChatUnreadCount('AK806', 0),
+      ]);
     });
 
     test('notifications', () async {

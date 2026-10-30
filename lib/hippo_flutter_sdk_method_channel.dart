@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'hippo_flutter_sdk_platform_interface.dart';
+import 'src/chat_unread_count.dart';
 import 'src/hippo_log.dart';
 
 /// An implementation of [HippoFlutterSdkPlatform] that uses method channels.
@@ -26,10 +27,15 @@ class MethodChannelHippoFlutterSdk extends HippoFlutterSdkPlatform {
   @visibleForTesting
   final announcementEventChannel = const EventChannel('hippo_flutter_sdk_announcement_events');
 
+  /// The event channel the native platform sends peer-chat unread counts on: `{"transactionId": …, "count": …}`.
+  @visibleForTesting
+  final chatEventChannel = const EventChannel('hippo_flutter_sdk_chat_events');
+
   // One native subscription per count, shared by every listener: an event channel takes one listener at a time, so a
   // second receiveBroadcastStream() would take the counts away from the first.
   Stream<int>? _unreadCounts;
   Stream<int>? _announcementCounts;
+  Stream<ChatUnreadCount>? _chatCounts;
 
   /// Initializes the Hippo Flutter SDK with the given data.
   ///
@@ -120,6 +126,27 @@ class MethodChannelHippoFlutterSdk extends HippoFlutterSdkPlatform {
   Stream<int> getUnreadAnnouncementCountStream() {
     return _announcementCounts ??=
         announcementEventChannel.receiveBroadcastStream().map(_count('unread announcements'));
+  }
+
+  /// Asks Hippo for one peer chat's unread count: the chat [openPeerChat] opens with the same [peerChatData].
+  ///
+  /// The answer is also sent on [getChatUnreadCountStream].
+  @override
+  Future<int?> getChatUnreadCount(String peerChatData) async {
+    HippoLog.d('getChatUnreadCount: asking Hippo for $peerChatData');
+    final count = await methodChannel.invokeMethod<int>('getChatUnreadCount', peerChatData);
+    HippoLog.d('getChatUnreadCount: $count');
+    return count;
+  }
+
+  /// Gets a stream of peer-chat unread counts. A new listener first gets the last count of every chat asked about.
+  @override
+  Stream<ChatUnreadCount> getChatUnreadCountStream() {
+    return _chatCounts ??= chatEventChannel.receiveBroadcastStream().map((event) {
+      final count = ChatUnreadCount.fromEvent(event);
+      HippoLog.d('unread messages in chat ${count.transactionId}: ${count.count}');
+      return count;
+    });
   }
 
   /// Whether a push message's data came from Hippo (`push_source` FUGU or HIPPO).
